@@ -10,7 +10,6 @@ app.use(bp.urlencoded({ extended: true }))
 app.use(cors());
 
 // BOOKS
-
 app.get('/books', (req, res) => {
     
     fs.readFile(`${__dirname}/books.json`,'utf-8', (error, data) => {
@@ -54,6 +53,7 @@ app.get('/books/:bid', (req, res) => {
         res.sendStatus(400);
     });
 });
+// Könyvek törlésekor a Books és a Rentalsból is ki kell törölni
 app.delete('/books/:bid',(req, res) => {
     if(req.params.bid === undefined) {
         console.log("404");
@@ -76,6 +76,23 @@ app.delete('/books/:bid',(req, res) => {
             return;
         }
         fs.writeFile(`${__dirname}/books.json`, JSON.stringify(newArray), (error) => {
+            if(error) 
+            {
+                res.sendStatus(500);
+                return;
+            }
+        });
+    });
+    fs.readFile(`${__dirname}/rentals.json`, 'utf-8', (error, data) => {
+        if(error) {
+            res.sendStatus(500);
+            return;
+        }
+        let array = JSON.parse(data);
+        let newArray = array.filter((value, index, arr) => {
+            return value.book_id != req.params.bid;
+        });
+        fs.writeFile(`${__dirname}/rentals.json`, JSON.stringify(newArray), (error) => {
             if(error) 
             {
                 res.sendStatus(500);
@@ -125,7 +142,6 @@ app.put('/books/:bid', (req, res) => {
     });
 });
 app.post('/books', (req, res) => {
-    console.log("\n\n");
     if(req.body.id === undefined || req.body.title === undefined || req.body.author_id === undefined) {
         console.log("404");
         res.sendStatus(404);
@@ -199,6 +215,7 @@ app.get('/authors/:aid', (req, res) => {
         res.sendStatus(400);
     });
 });
+// Szerző törlésénél a hozzá kapcsolódó könyveket el kell távolítani, illetve a könyveihez tartozó rendeléseket
 app.delete('/authors/:aid',(req, res) => {
     if(req.params.aid === undefined) {
         console.log("404");
@@ -226,11 +243,50 @@ app.delete('/authors/:aid',(req, res) => {
                 res.sendStatus(500);
                 return;
             }
-            res.status(204);
-            res.send(JSON.stringify(newArray));
         });
         
     });
+    let bookIds = [];
+    fs.readFile(`${__dirname}/books.json`, 'utf-8', (error, data) => {
+        if(error) {
+            res.sendStatus(500);
+            return;
+        }
+        let array = JSON.parse(data);
+        let newArray = array.filter((value, index, arr) => {
+            return value.author_id != req.params.aid;
+        });
+        bookIds = array.filter((value, index, arr) => {
+            return value.author_id == req.params.aid;
+        });
+        fs.writeFile(`${__dirname}/books.json`, JSON.stringify(newArray), (error) => {
+            if(error) 
+            {
+                res.sendStatus(500);
+                return;
+            }
+        });
+        fs.readFile(`${__dirname}/rentals.json`, 'utf-8', (error, data) => {
+            if(error) {
+                res.sendStatus(500);
+                return;
+            }
+            let array = JSON.parse(data);
+            let newArray = array.filter((value, index, arr) => {
+                return bookIds.includes(value.book_id);
+            });
+            fs.writeFile(`${__dirname}/rentals.json`, JSON.stringify(newArray), (error) => {
+                if(error) 
+                {
+                    res.sendStatus(500);
+                    return;
+                }
+                res.status(204);
+                res.send(JSON.stringify(newArray));
+            });
+        });
+    });
+    
 });
 app.put('/authors/:aid', (req, res) => {
     if(req.body.id === undefined || req.body.name === undefined) {
@@ -342,6 +398,7 @@ app.get('/users/:uid', (req, res) => {
         res.sendStatus(400);
     });
 });
+// User törlésénél a Users-ből és a Rentals-ból is el kell távolítani a hozzá kapcsolódó adatokat
 app.delete('/users/:uid',(req, res) => {
     if(req.params.uid === undefined) {
         console.log("404");
@@ -364,6 +421,24 @@ app.delete('/users/:uid',(req, res) => {
             return;
         }
         fs.writeFile(`${__dirname}/users.json`, JSON.stringify(newArray), (error) => {
+            if(error) 
+            {
+                res.sendStatus(500);
+                return;
+            }
+        });
+    });
+
+    fs.readFile(`${__dirname}/rentals.json`, 'utf-8', (error, data) => {
+        if(error) {
+            res.sendStatus(500);
+            return;
+        }
+        let array = JSON.parse(data);
+        let newArray = array.filter((value, index, arr) => {
+            return value.renter_id != req.params.uid;
+        });
+        fs.writeFile(`${__dirname}/rentals.json`, JSON.stringify(newArray), (error) => {
             if(error) 
             {
                 res.sendStatus(500);
@@ -440,6 +515,8 @@ app.post('/users', (req, res) => {
         });
     });
 });
+
+
 
 // RENTALS
 app.get('/rentals', (req, res) => {
